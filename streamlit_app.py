@@ -175,7 +175,6 @@ with tab2:
     st.info("**Key Insights:**\n\n- Viewing spikes occur in the afternoon.\n- Purchases peak mid-morning, especially Wednesdays.\n- Consider scheduling promotional content between 9AM and 12PM.")
 
 # -------------------- Tab 3 --------------------
-# -------------------- Tab 3 --------------------
 with tab3:
     st.header("🟩 Brand ROI Model")
 
@@ -202,6 +201,29 @@ with tab3:
     X = features[['view', 'cart']]
     y = features['converted'].fillna(0).astype(int)
 
+
+    # --- Prepare features safely ---
+    model_df = df[df['event_type'].isin(['view', 'cart', 'purchase'])].copy()
+    model_df['converted'] = (model_df['event_type'] == 'purchase').astype(int)
+
+    features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
+
+    # Add conversion count (target) per brand
+    converted_counts = model_df.groupby('brand')['converted'].sum()
+    features['converted'] = converted_counts.reindex(features.index, fill_value=0)
+
+    # Remove brands with no views
+    features = features[features['view'] > 0]
+
+    # --- Build X and y ---
+    X = features[['view', 'cart']].copy()
+    y = features['converted'].copy()
+
+    # Final safety: drop any rows with missing or invalid values
+    valid_mask = X.notna().all(axis=1) & y.notna()
+    X = X[valid_mask]
+    y = y[valid_mask].astype(int)
+    
     # Train logistic regression
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     model = LogisticRegression()
