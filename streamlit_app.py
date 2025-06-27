@@ -16,7 +16,7 @@ st.title("Smartphone Sales Dashboard")
 @st.cache_data
 def load_data():
     url = "https://huggingface.co/datasets/7ng10dpE/Online-Retail/resolve/main/Smartphones_6M_FINAL.csv"
-    df = pd.read_csv(url)
+    df = pd.read_csv(url, nrows=100_000)  # Load only 100k rows
     df['event_time'] = pd.to_datetime(df['event_time'], errors='coerce')
     return df
 
