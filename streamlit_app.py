@@ -206,6 +206,14 @@ with tab3:
     # Step 6: Train logistic regression model
     from sklearn.linear_model import LogisticRegression
     from sklearn.model_selection import train_test_split
+
+    # Final validation mask to ensure both X and y are numeric and complete
+    valid_rows = X.notna().all(axis=1) & y.notna() & np.isfinite(X).all(axis=1) & np.isfinite(y)
+
+    # Filter both
+    X_clean = X[valid_rows]
+    y_clean = y[valid_rows].astype(int)
+    
     X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
     model = LogisticRegression()
     model.fit(X_train, y_train)
