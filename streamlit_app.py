@@ -15,10 +15,9 @@ st.title("📱 Smartphone Sales Dashboard")
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Smartphones_6M_FINAL.csv")
+    url = "https://huggingface.co/datasets/7ng10dpE/Online-Retail/resolve/main/Smartphones_6M_FINAL.csv"
+    df = pd.read_csv(url)
     df['event_time'] = pd.to_datetime(df['event_time'], errors='coerce')
-    df['hour'] = df['event_time'].dt.hour
-    df['weekday'] = df['event_time'].dt.day_name()
     return df
 
 df = load_data()
