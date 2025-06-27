@@ -185,68 +185,69 @@ with tab3:
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-# Step 1: Build event counts
+# Step 1: Prep input
 model_df = df[df['event_type'].isin(['view', 'cart', 'purchase'])].copy()
 model_df['converted'] = (model_df['event_type'] == 'purchase').astype(int)
 
+# Step 2: Aggregate by brand
 features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
-converted = model_df.groupby('brand')['converted'].sum()
-features['converted'] = converted.reindex(features.index, fill_value=0)
+features['converted'] = model_df.groupby('brand')['converted'].sum().reindex(features.index, fill_value=0)
 
-# Step 2: Remove brands with 0 views (to avoid division)
+# Step 3: Filter brands with views > 0
 features = features[features['view'] > 0]
 
-# Step 3: Create X and y
+# Step 4: Build clean X and y
 X = features[['view', 'cart']].copy()
 y = features['converted'].copy()
 
-# Step 4: Drop any rows with NaN or Inf (from both X and y)
-mask = (
-    X.notna().all(axis=1) & 
-    y.notna() & 
-    np.isfinite(X).all(axis=1) & 
+# ⚠️ Final check: ensure numeric, no NaN or inf
+valid_rows = (
+    X.notna().all(axis=1) &
+    np.isfinite(X).all(axis=1) &
+    y.notna() &
     np.isfinite(y)
 )
-X_clean = X[mask]
-y_clean = y[mask].astype(int)
 
-# Final check (optional)
-if len(X_clean) < 2:
-    st.warning("Not enough valid data to train the model.")
-else:
-    # Step 5: Train model
-    X_train, X_test, y_train, y_test = train_test_split(X_clean, y_clean, random_state=42)
-    model = LogisticRegression()
-    model.fit(X_train, y_train)
+X = X[valid_rows]
+y = y[valid_rows].astype(int)
 
-    # Predictions and add to DataFrame
-    features = features.loc[X_clean.index]
-    features['Predicted Conversion'] = model.predict_proba(X_clean)[:, 1].round(3)
-    features['Cart Rate'] = (features['cart'] / features['view']).round(3)
-    features['Brand'] = features.index
+# ✅ Optional: log shapes before fitting
+st.write(f"✅ Training on {X.shape[0]} rows")
 
-    # Scatter plot
-    st.subheader("Predicted Conversion vs. Cart Rate")
-    fig = px.scatter(
-        features,
-        x="Cart Rate",
-        y="Predicted Conversion",
-        color="Brand",
-        color_discrete_map=brand_colors,
-        labels={"Cart Rate": "Cart Rate", "Predicted Conversion": "Predicted Conversion Probability"},
-        title="Conversion Efficiency by Brand"
-    )
-    fig.update_layout(showlegend=True)
-    st.plotly_chart(fig, use_container_width=True)
+# Step 5: Fit model
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
+model = LogisticRegression()
+model.fit(X_train, y_train)
 
-    # Table
-    st.subheader("Engagement Metrics by Brand")
-    table = features[['view', 'cart', 'converted', 'Cart Rate', 'Predicted Conversion']].copy()
-    table.columns = ['Views', 'Carts', 'Purchases', 'Cart Rate', 'Predicted Conversion']
-    table[['Views', 'Carts', 'Purchases']] = table[['Views', 'Carts', 'Purchases']].astype(int)
-    st.dataframe(table.round(1), use_container_width=True)
+# Predict + enrich
+features = features.loc[X.index]
+features['Predicted Conversion'] = model.predict_proba(X)[:, 1].round(3)
+features['Cart Rate'] = (features['cart'] / features['view']).round(3)
+features['Brand'] = features.index
 
-    st.info("**Key Insights:**\n\n- Brands with high cart rate *and* high predicted conversion are ideal targets.\n- Brands with high views but low conversion may need improved targeting or ad creative.")
+# Plot
+st.subheader("Predicted Conversion vs. Cart Rate")
+fig = px.scatter(
+    features,
+    x="Cart Rate",
+    y="Predicted Conversion",
+    color="Brand",
+    labels={"Cart Rate": "Cart Rate", "Predicted Conversion": "Predicted Conversion Probability"},
+    color_discrete_map=brand_colors
+)
+fig.update_layout(showlegend=True)
+st.plotly_chart(fig, use_container_width=True)
+
+# Table
+st.subheader("Engagement Metrics by Brand")
+table = features[['view', 'cart', 'converted', 'Cart Rate', 'Predicted Conversion']].copy()
+table.columns = ['Views', 'Carts', 'Purchases', 'Cart Rate', 'Predicted Conversion']
+table[['Views', 'Carts', 'Purchases']] = table[['Views', 'Carts', 'Purchases']].astype(int)
+st.dataframe(table.round(1), use_container_width=True)
+
+st.info("**Key Insights:**\n\n"
+        "- High cart rate + high predicted conversion → best ROI.\n"
+        "- Underperforming brands may not justify promotion.")
 
 # -------------------- Tab 4 --------------------
 with tab4:
