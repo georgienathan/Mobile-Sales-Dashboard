@@ -1,18 +1,16 @@
 import streamlit as st
 import pandas as pd
-import gdown
+
+st.set_page_config(page_title="Smartphone Dashboard", layout="wide")
+st.title("Smartphone Dashboard")
 
 @st.cache_data
 def load_data():
-    file_id = '1LhxxZdladJ5Jn5tX0_fq4-7VgJAGc_5V'  
-    url = f'https://drive.google.com/uc?id={file_id}'
-    output = 'Smartphones_CLEAN.csv'
-    gdown.download(url, output, quiet=False)
-    return pd.read_csv(output, parse_dates=["event_time"])
+    df = pd.read_csv("Smartphones_6M_FINAL.csv")
+    df['event_time'] = pd.to_datetime(df['event_time'], errors='coerce')
+    return df
 
 df = load_data()
 
-st.set_page_config(page_title="Mobile Sales Dashboard", layout="wide")
-st.title("📱 Mobile Sales Dashboard")
-st.write("✅ Data loaded successfully")
-st.dataframe(df.head())
+st.success(f"Loaded {len(df):,} rows")
+st.dataframe(df.head(), use_container_width=True)
