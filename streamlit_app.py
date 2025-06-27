@@ -15,10 +15,14 @@ st.title("Smartphone Sales Dashboard")
 
 @st.cache_data
 def load_data():
-    url = "https://huggingface.co/datasets/7ng10dpE/Online-Retail/resolve/main/Smartphones_6M_FINAL.csv"
-    df = pd.read_csv(url)
-    df['event_time'] = pd.to_datetime(df['event_time'], errors='coerce')
-    return df
+    try:
+        url = "https://huggingface.co/datasets/7ng10dpE/Online-Retail/blob/main/Smartphones_6M_FINAL.csv"
+        df = pd.read_csv(url)
+        df['event_time'] = pd.to_datetime(df['event_time'], errors='coerce')
+        return df
+    except Exception as e:
+        st.error(f"❌ Failed to load data: {e}")
+        return pd.DataFrame() 
 
 df = load_data()
 
