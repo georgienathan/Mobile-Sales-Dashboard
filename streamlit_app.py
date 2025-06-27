@@ -214,6 +214,24 @@ y = y[valid_rows].astype(int)
 # ✅ Optional: log shapes before fitting
 st.write(f"✅ Training on {X.shape[0]} rows")
 
+print("y dtype:", y.dtype)
+print("y contains NaN:", y.isna().any())
+print("y contains inf:", np.isinf(y).any())
+print("y unique values:", y.unique())
+
+valid_mask = (
+    X.notna().all(axis=1) &
+    np.isfinite(X).all(axis=1) &
+    y.notna() &
+    np.isfinite(y)
+)
+
+X_clean = X[valid_mask]
+y_clean = y[valid_mask].astype(int)
+
+print("✅ X_clean shape:", X_clean.shape)
+print("✅ y_clean shape:", y_clean.shape)
+
 # Step 5: Fit model
 X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=42)
 model = LogisticRegression()
