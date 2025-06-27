@@ -182,51 +182,50 @@ with tab3:
     This model estimates how likely each brand is to convert views into purchases using logistic regression.  
     Brands with high conversion and engagement are ideal candidates for ad spend.
     """)
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
 
-    # Step 1: Filter to relevant event types and create "converted" flag
-    model_df = df[df['event_type'].isin(['view', 'cart', 'purchase'])].copy()
-    model_df['converted'] = (model_df['event_type'] == 'purchase').astype(int)
+# Step 1: Build event counts
+model_df = df[df['event_type'].isin(['view', 'cart', 'purchase'])].copy()
+model_df['converted'] = (model_df['event_type'] == 'purchase').astype(int)
 
-    # Step 2: Aggregate feature data per brand
-    features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
-    converted_counts = model_df.groupby('brand')['converted'].sum()
-    features['converted'] = converted_counts.reindex(features.index, fill_value=0)
+features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
+converted = model_df.groupby('brand')['converted'].sum()
+features['converted'] = converted.reindex(features.index, fill_value=0)
 
-    # Step 3: Only keep brands with at least 1 view
-    features = features[features['view'] > 0]
+# Step 2: Remove brands with 0 views (to avoid division)
+features = features[features['view'] > 0]
 
-    # Step 4: Define X and y
-    X = features[['view', 'cart']]
-    y = features['converted']
+# Step 3: Create X and y
+X = features[['view', 'cart']].copy()
+y = features['converted'].copy()
 
-    # Step 5: Clean any remaining issues
-    X = X.replace([np.inf, -np.inf], np.nan).dropna()
-    y = y.reindex(X.index).fillna(0).astype(int)
+# Step 4: Drop any rows with NaN or Inf (from both X and y)
+mask = (
+    X.notna().all(axis=1) & 
+    y.notna() & 
+    np.isfinite(X).all(axis=1) & 
+    np.isfinite(y)
+)
+X_clean = X[mask]
+y_clean = y[mask].astype(int)
 
-    # Step 6: Train logistic regression model
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import train_test_split
-
-    # Final validation mask to ensure both X and y are numeric and complete
-    valid_rows = X.notna().all(axis=1) & y.notna() & np.isfinite(X).all(axis=1) & np.isfinite(y)
-
-    # Filter both
-    X_clean = X[valid_rows]
-    y_clean = y[valid_rows].astype(int)
-
-
+# Final check (optional)
+if len(X_clean) < 2:
+    st.warning("Not enough valid data to train the model.")
+else:
+    # Step 5: Train model
     X_train, X_test, y_train, y_test = train_test_split(X_clean, y_clean, random_state=42)
     model = LogisticRegression()
     model.fit(X_train, y_train)
 
-
-    # Step 7: Add predictions and metrics
-    features = features.loc[X.index]
-    features['Predicted Conversion'] = model.predict_proba(X)[:, 1].round(3)
+    # Predictions and add to DataFrame
+    features = features.loc[X_clean.index]
+    features['Predicted Conversion'] = model.predict_proba(X_clean)[:, 1].round(3)
     features['Cart Rate'] = (features['cart'] / features['view']).round(3)
     features['Brand'] = features.index
 
-    # Step 8: Scatter plot
+    # Scatter plot
     st.subheader("Predicted Conversion vs. Cart Rate")
     fig = px.scatter(
         features,
@@ -240,18 +239,14 @@ with tab3:
     fig.update_layout(showlegend=True)
     st.plotly_chart(fig, use_container_width=True)
 
-    # Step 9: Engagement table
+    # Table
     st.subheader("Engagement Metrics by Brand")
-    engagement = features[['view', 'cart', 'converted', 'Cart Rate', 'Predicted Conversion']].copy()
-    engagement.columns = ['Views', 'Carts', 'Purchases', 'Cart Rate', 'Predicted Conversion']
-    engagement[['Views', 'Carts', 'Purchases']] = engagement[['Views', 'Carts', 'Purchases']].astype(int)
-    st.dataframe(engagement.round(1), use_container_width=True)
+    table = features[['view', 'cart', 'converted', 'Cart Rate', 'Predicted Conversion']].copy()
+    table.columns = ['Views', 'Carts', 'Purchases', 'Cart Rate', 'Predicted Conversion']
+    table[['Views', 'Carts', 'Purchases']] = table[['Views', 'Carts', 'Purchases']].astype(int)
+    st.dataframe(table.round(1), use_container_width=True)
 
-    # Step 10: Insights
-    st.info("**Key Insights:**\n\n"
-            "- Brands with high cart rate *and* high predicted conversion (top-right corner) are prime ad targets.\n"
-            "- Several brands underperform despite high views — review ROI.\n"
-            "- This model helps move beyond volume to true performance efficiency.")
+    st.info("**Key Insights:**\n\n- Brands with high cart rate *and* high predicted conversion are ideal targets.\n- Brands with high views but low conversion may need improved targeting or ad creative.")
 
 # -------------------- Tab 4 --------------------
 with tab4:
