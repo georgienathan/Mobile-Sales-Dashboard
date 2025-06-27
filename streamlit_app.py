@@ -10,8 +10,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 
-st.set_page_config(page_title="📱 Smartphone Dashboard", layout="wide")
-st.title("📱 Smartphone Sales Dashboard")
+st.set_page_config(page_title="Smartphone Dashboard", layout="wide")
+st.title("Smartphone Sales Dashboard")
 
 @st.cache_data
 def load_data():
