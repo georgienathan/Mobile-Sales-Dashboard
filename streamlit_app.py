@@ -175,6 +175,7 @@ with tab2:
     st.info("**Key Insights:**\n\n- Viewing spikes occur in the afternoon.\n- Purchases peak mid-morning, especially Wednesdays.\n- Consider scheduling promotional content between 9AM and 12PM.")
 
 # -------------------- Tab 3 --------------------
+# -------------------- Tab 3 --------------------
 with tab3:
     st.header("🟩 Brand ROI Model")
 
@@ -183,24 +184,35 @@ with tab3:
     Brands with high conversion and engagement are ideal candidates for ad spend.
     """)
 
+    # Filter relevant rows and create conversion flag
     model_df = df[df['event_type'].isin(['view', 'cart', 'purchase'])].copy()
     model_df['converted'] = (model_df['event_type'] == 'purchase').astype(int)
-    features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
-    features['converted'] = model_df[model_df['converted'] == 1].groupby('brand').size()
-    features = features[features['view'] > 0]
-    X = features[['view', 'cart']]
-    y = features['converted']
 
-    from sklearn.linear_model import LogisticRegression
-    from sklearn.model_selection import train_test_split
+    # Aggregate view/cart counts
+    features = model_df.groupby('brand')['event_type'].value_counts().unstack().fillna(0)
+
+    # Add target: number of purchases per brand
+    converted_counts = model_df[model_df['converted'] == 1].groupby('brand').size()
+    features['converted'] = converted_counts.reindex(features.index, fill_value=0)
+
+    # Keep only brands with at least one view
+    features = features[features['view'] > 0]
+
+    # Define features and target
+    X = features[['view', 'cart']]
+    y = features['converted'].fillna(0).astype(int)
+
+    # Train logistic regression
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
     model = LogisticRegression()
     model.fit(X_train, y_train)
 
+    # Predict conversion probability
     features['Predicted Conversion'] = model.predict_proba(X)[:, 1].round(3)
     features['Cart Rate'] = (features['cart'] / features['view']).round(3)
     features['Brand'] = features.index
 
+    # Scatterplot
     st.subheader("Predicted Conversion vs. Cart Rate")
     fig = px.scatter(
         features,
@@ -213,13 +225,19 @@ with tab3:
     fig.update_layout(showlegend=True)
     st.plotly_chart(fig, use_container_width=True)
 
+    # Engagement metrics table
     st.subheader("Engagement Metrics by Brand")
     engagement = features[['view', 'cart', 'converted', 'Cart Rate', 'Predicted Conversion']]
     engagement.columns = ['Views', 'Carts', 'Purchases', 'Cart Rate', 'Predicted Conversion']
     engagement[['Views', 'Carts', 'Purchases']] = engagement[['Views', 'Carts', 'Purchases']].astype(int)
     st.dataframe(engagement.round(1), use_container_width=True)
 
-    st.info("**Key Insights:**\n\n- Brands with high cart rate + high predicted conversion (top-right corner) are prime for promotion.\n- Several brands underperform relative to their view volume — review targeting.")
+    # Summary insights
+    st.info("**Key Insights:**\n\n"
+            "- Brands with high cart rate *and* high predicted conversion (top-right corner) are prime ad targets.\n"
+            "- Underperformers with many views but low conversion should be reconsidered.\n"
+            "- Use this model to prioritize campaigns with data-driven ROI confidence.")
+
 
 # -------------------- Tab 4 --------------------
 with tab4:
