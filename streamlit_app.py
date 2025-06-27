@@ -120,6 +120,12 @@ with tab1:
 with tab2:
     st.header("🟧 Time Analysis")
 
+    df['hour'] = df['event_time'].dt.hour
+    df['weekday'] = pd.Categorical(
+    df['event_time'].dt.day_name(),
+    categories=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+    ordered=True
+)
     st.subheader("Products Viewed (Heatmap)")
     view_matrix = df[df['event_type'] == 'view'].groupby(['weekday', 'hour']).size().unstack().fillna(0)
     view_matrix = view_matrix.reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
