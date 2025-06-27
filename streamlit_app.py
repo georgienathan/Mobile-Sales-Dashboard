@@ -116,19 +116,20 @@ with tab1:
 
     st.info("**Key Insights:**\n\n- High-basket brands like Samsung and Xiaomi stand out.\n- Some brands receive many views but low purchases — watch ROI.\n- Top co-purchased items suggest upsell bundles.")
 
-# -------------------- Tab 2 --------------------
-with tab2:
-    st.header("🟧 Time Analysis")
-
-    df['hour'] = df['event_time'].dt.hour
-    df['weekday'] = pd.Categorical(
+# Preprocessing required for time analysis
+df['hour'] = df['event_time'].dt.hour
+df['weekday'] = pd.Categorical(
     df['event_time'].dt.day_name(),
     categories=["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
     ordered=True
 )
+
+# -------------------- Tab 2 --------------------
+with tab2:
+    st.header("🟧 Time Analysis")
+
     st.subheader("Products Viewed (Heatmap)")
     view_matrix = df[df['event_type'] == 'view'].groupby(['weekday', 'hour']).size().unstack().fillna(0)
-    view_matrix = view_matrix.reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
     fig_view = go.Figure(data=go.Heatmap(
         z=view_matrix.values,
         x=view_matrix.columns,
@@ -136,12 +137,15 @@ with tab2:
         colorscale='Blues',
         colorbar=dict(title="Views")
     ))
-    fig_view.update_layout(xaxis_title="Hour", yaxis_title="Weekday")
+    fig_view.update_layout(
+        xaxis_title="Hour of Day",
+        yaxis_title="Weekday",
+        title="Heatmap of Views by Hour and Day"
+    )
     st.plotly_chart(fig_view, use_container_width=True)
 
     st.subheader("Products Purchased (Heatmap)")
     purchase_matrix = df[df['event_type'] == 'purchase'].groupby(['weekday', 'hour']).size().unstack().fillna(0)
-    purchase_matrix = purchase_matrix.reindex(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"])
     fig_purch = go.Figure(data=go.Heatmap(
         z=purchase_matrix.values,
         x=purchase_matrix.columns,
@@ -149,19 +153,27 @@ with tab2:
         colorscale='Greens',
         colorbar=dict(title="Purchases")
     ))
-    fig_purch.update_layout(xaxis_title="Hour", yaxis_title="Weekday")
+    fig_purch.update_layout(
+        xaxis_title="Hour of Day",
+        yaxis_title="Weekday",
+        title="Heatmap of Purchases by Hour and Day"
+    )
     st.plotly_chart(fig_purch, use_container_width=True)
 
     st.subheader("Conversion Rate by Hour")
     hourly_views = df[df['event_type'] == 'view'].groupby('hour').size()
     hourly_purchases = df[df['event_type'] == 'purchase'].groupby('hour').size()
     conversion_rate = (hourly_purchases / hourly_views).dropna().round(3)
-    fig_conv = px.line(x=conversion_rate.index, y=conversion_rate.values,
-                       labels={'x': 'Hour of Day', 'y': 'Conversion Rate'},
-                       title='Hourly Conversion Rate')
+    fig_conv = px.line(
+        x=conversion_rate.index,
+        y=conversion_rate.values,
+        labels={'x': 'Hour of Day', 'y': 'Conversion Rate'},
+        title="Conversion Rate by Hour"
+    )
     st.plotly_chart(fig_conv, use_container_width=True)
 
-    st.info("**Key Insights:**\n\n- Viewing spikes in the afternoon.\n- Purchases peak mid-morning (esp. Wednesday).\n- Consider scheduling ads between 9AM–12PM.")
+    st.info("**Key Insights:**\n\n- Viewing spikes occur in the afternoon.\n- Purchases peak mid-morning, especially Wednesdays.\n- Consider scheduling promotional content between 9AM and 12PM.")
+
 # -------------------- Tab 3 --------------------
 with tab3:
     st.header("🟩 Brand ROI Model")
